@@ -32,9 +32,10 @@ single_mol = torch.tensor(np_single_mol, device=device, dtype=torch.float64)
 A_molecules = torch.tile(single_mol, (M, 1)).to(device)
 B_molecules = torch.tile(single_mol, (M, 1)).to(device)
 
-file = open('results.txt', 'w')
-
 sigma = torch.sqrt(2 * D * dt).item()
+
+result_A = []
+result_B = []
 
 for i in range(steps):
     delta_A = torch.normal(0, sigma, (M, 3), device=device, dtype=torch.float64)
@@ -49,20 +50,23 @@ for i in range(steps):
     distances_B = torch.norm(B_molecules - center_rx, dim=1)
     absorbed_B = distances_B <= r_rx
 
-    filtered_A = A_molecules[absorbed_A]
-    filtered_B = B_molecules[absorbed_B]
+    if absorbed_A.any():
+        filtered_A = A_molecules[absorbed_A]
+        result_A.extend(filtered_A.tolist())
+        A_molecules[absorbed_A] = torch.tensor([1e8, 1e8, 1e8], device=device, dtype=torch.float64)
 
-    A_molecules[absorbed_A] = torch.tensor([1e8, 1e8, 1e8], device=device, dtype=torch.float64)
-    B_molecules[absorbed_B] = torch.tensor([1e8, 1e8, 1e8], device=device, dtype=torch.float64)
+    if absorbed_B.any():
+        filtered_B = B_molecules[absorbed_B]
+        result_B.extend(filtered_B.tolist())
+        B_molecules[absorbed_B] = torch.tensor([1e8, 1e8, 1e8], device=device, dtype=torch.float64)
 
-    for mol in filtered_A:
-        file.write(f"{mol[0].item()} {mol[1].item()} {mol[2].item()} 0\n")
+with open('results.txt', 'w') as file:
+    for mol in result_A:
+        file.write(f"{mol[0]} {mol[1]} {mol[2]} 0\n")
 
-    for mol in filtered_B:
-        file.write(f"{mol[0].item()} {mol[1].item()} {mol[2].item()} 1\n")
+    for mol in result_B:
+        file.write(f"{mol[0]} {mol[1]} {mol[2]} 1\n")
 
-file.close()
 end_time = time.time()
-
 print(f"time passed: {end_time - start_time}")
 
